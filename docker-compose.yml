@@ -1,0 +1,64 @@
+version: '2'
+services:
+  proxy:
+    command: >
+      --api
+      --api.dashboard
+      --api.entrypoint=api
+      --docker
+      --docker.exposedbydefault=false
+      --entryPoints='Name:http Address::80'
+      --entryPoints='Name:https Address::443 TLS'
+      --entryPoints='Name:srv-http Address::8080'
+      --entryPoints='Name:srv-https Address::8443 TLS'
+      --entryPoints='Name:api Address::9090'
+      --file
+      --file.directory=/data/config/
+      --file.watch
+    image: traefik:alpine
+    labels:
+      traefik.enable: true
+      traefik.api.port: 9090
+      traefik.api.domain: ${HOSTNAME}
+      traefik.api.backend: api
+      traefik.api.frontend.auth.basic.usersFile: /data/passwd
+      traefik.api.frontend.entryPoints: http,https
+      traefik.api.frontend.priority: 1000
+      traefik.api.frontend.rule: 'HostRegexp:${HOSTNAME};PathPrefixStrip:/proxy'
+    restart: always
+    ports:
+    - 80:80
+    - 443:443
+    - 8080:8080
+    - 8443:8443
+    volumes:
+    - ./data:/data
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+  certbot:
+    command: renew
+    image: certbot/certbot:latest
+    labels:
+      traefik.enable: true
+      traefik.backend: certbot
+      traefik.frontend.entryPoints: http
+      traefik.frontend.priority: 1000
+      traefik.frontend.rule: 'PathPrefix:/.well-known/acme-challenge'
+    volumes:
+    - ./data/letsencrypt:/etc/letsencrypt
+  fallback:
+    build:
+      args:
+        hostname: ${HOSTNAME}
+      context: ./manifest/fallback
+    labels:
+      traefik.enable: true
+      traefik.backend: fallback
+      traefik.domain: ${HOSTNAME}
+      traefik.frontend.entryPoints: http,https
+      traefik.frontend.priority: 1
+      traefik.frontend.rule: 'HostRegexp:{catchall:.*};'
+    restart: always
+networks:
+  default:
+    external:
+      name: webproxy_nw
