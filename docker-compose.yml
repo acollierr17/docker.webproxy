@@ -35,7 +35,7 @@ services:
     volumes:
     - ./data:/data
     - /var/run/docker.sock:/var/run/docker.sock:ro
-    
+
   certbot:
     command: renew
     image: certbot/certbot:latest
@@ -58,7 +58,7 @@ services:
       traefik.backend: 'fallback'
       traefik.domain: '${HOSTNAME}'
       traefik.frontend.entryPoints: 'http,https'
-      traefik.frontend.priority: 1
+      traefik.frontend.priority: '1'
       traefik.frontend.rule: 'HostRegexp:{catchall:.*};'
     restart: always
 
